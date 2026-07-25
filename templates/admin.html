@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理后台 / Admin - 照片社区</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- ==================== 顶部 ==================== -->
+    <div class="admin-header">
+        <div class="container" style="display:flex; justify-content:space-between; align-items:center;">
+            <h1>📋 管理后台 / Admin Panel</h1>
+            <div>
+                <a href="/" style="color:#fff; margin-right:16px;">← 返回首页</a>
+                <a href="/logout" style="color:#fff;">退出 / Logout</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2 style="margin:20px 0;">所有照片 / All Photos ({{ images|length }})</h2>
+        
+        {% if images %}
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>预览</th>
+                    <th>标题</th>
+                    <th>上传者</th>
+                    <th>状态</th>
+                    <th>时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for img in images %}
+                <tr>
+                    <td>
+                        <img src="{{ img.image_url }}" alt="{{ img.title }}"
+                             onerror="this.src='https://via.placeholder.com/60/e0e0e0/999'">
+                    </td>
+                    <td>{{ img.title }}</td>
+                    <td>{{ img.username }}</td>
+                    <td>
+                        <span class="badge {% if img.is_public %}badge-public{% else %}badge-private{% endif %}">
+                            {% if img.is_public %}🌍 公开{% else %}🔒 私密{% endif %}
+                        </span>
+                    </td>
+                    <td style="font-size:12px;">{{ img.created_at }}</td>
+                    <td>
+                        <button class="btn-sm btn-toggle" onclick="togglePublic('{{ img.id }}')">
+                            {% if img.is_public %}设为私密{% else %}设为公开{% endif %}
+                        </button>
+                        <button class="btn-sm btn-delete" onclick="deleteImage('{{ img.id }}')">删除</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="text-align:center; padding:60px; color:#999;">
+            <div style="font-size:60px;">📷</div>
+            <h3>还没有照片</h3>
+            <p>用户上传照片后会显示在这里</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ==================== 提示消息 ==================== -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // 切换公开/私密
+        async function togglePublic(imageId) {
+            try {
+                const res = await fetch('/api/toggle_public', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({image_id: imageId})
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    showToast('✅ ' + data.message);
+                    setTimeout(() => location.reload(), 800);
+                } else {
+                    showToast('❌ ' + data.message);
+                }
+            } catch (err) {
+                showToast('❌ 操作失败');
+            }
+        }
+        
+        // 删除图片
+        async function deleteImage(imageId) {
+            if (!confirm('确定要删除这张照片吗？/ Confirm delete?')) return;
+            
+            try {
+                const res = await fetch('/api/delete_image', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({image_id: imageId})
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    showToast('✅ 已删除');
+                    setTimeout(() => location.reload(), 800);
+                } else {
+                    showToast('❌ ' + data.message);
+                }
+            } catch (err) {
+                showToast('❌ 操作失败');
+            }
+        }
+        
+        // 提示消息
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+    </script>
+</body>
+</html>
