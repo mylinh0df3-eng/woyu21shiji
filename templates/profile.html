@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ profile_user.username }} 的个人主页</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- ==================== 顶部导航 ==================== -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <a href="/" class="logo">
+                    <span class="logo-icon">📸</span>
+                    <span>照片社区</span>
+                </a>
+                <div class="nav-actions">
+                    {% if current_user %}
+                        <a href="/logout" class="btn-nav btn-outline">退出</a>
+                    {% else %}
+                        <a href="/login" class="btn-nav btn-primary">登录</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- ==================== 个人资料 ==================== -->
+        <div class="profile-header">
+            <div class="profile-avatar">{{ profile_user.username[0] }}</div>
+            <div class="profile-username">{{ profile_user.username }}</div>
+            {% if profile_user.bio %}
+            <div class="profile-bio">{{ profile_user.bio }}</div>
+            {% endif %}
+            <div class="profile-stats">
+                <div class="profile-stat">
+                    <div class="stat-num">{{ images|length }}</div>
+                    <div class="stat-text">作品</div>
+                </div>
+                <div class="profile-stat">
+                    <div class="stat-num">0</div>
+                    <div class="stat-text">粉丝</div>
+                </div>
+                <div class="profile-stat">
+                    <div class="stat-num">0</div>
+                    <div class="stat-text">关注</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== 上传按钮（仅本人可见） ==================== -->
+        {% if current_user and current_user.id == profile_user.id %}
+        <div class="upload-btn-area">
+            <button class="btn-primary" onclick="showUploadModal()">📤 上传照片</button>
+        </div>
+        {% endif %}
+
+        <!-- ==================== 作品展示 ==================== -->
+        {% if images %}
+        <div class="masonry-grid">
+            {% for img in images %}
+            <div class="image-card" onclick="window.location.href='/detail/{{ img.id }}'">
+                <img src="{{ img.image_url }}" alt="{{ img.title }}" loading="lazy"
+                     onerror="this.src='https://via.placeholder.com/400x300/e0e0e0/999?text=加载失败'">
+                <div class="image-card-info">
+                    <div class="image-card-title">{{ img.title }}</div>
+                    <div class="image-card-meta">
+                        <span class="stat-icon">
+                            {% if img.is_public %}🌍 公开{% else %}🔒 私密{% endif %}
+                        </span>
+                        <div class="image-card-stats">
+                            <span>❤️ {{ img.like_count }}</span>
+                            <span>💬 {{ img.comment_count }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="text-align:center; padding:60px 20px;">
+            <div style="font-size:60px;">📷</div>
+            <h3>还没有作品</h3>
+            <p style="color:#999;">上传你的第一张照片吧！</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ==================== 上传弹窗 ==================== -->
+    {% if current_user and current_user.id == profile_user.id %}
+    <div class="modal-overlay" id="uploadModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>上传照片</h3>
+                <button class="modal-close" onclick="hideUploadModal()">×</button>
+            </div>
+            <form id="uploadForm" enctype="multipart/form-data">
+                <!-- 图片选择 -->
+                <div class="file-upload-area" onclick="document.getElementById('imageInput').click()">
+                    <span class="upload-icon">📷</span>
+                    <span>点击选择照片</span>
+                    <span class="upload-hint">支持 JPG/PNG，最大16MB</span>
+                </div>
+                <input type="file" id="imageInput" name="image" accept="image/*" 
+                       style="display:none" onchange="previewImage(this)" required>
+                
+                <!-- 预览 -->
+                <img id="previewImg" class="preview-image" style="display:none;">
+                
+                <!-- 标题 -->
+                <div class="form-group">
+                    <label>标题（选填）</label>
+                    <input type="text" name="title" class="form-input" placeholder="给照片起个名字">
+                </div>
+                
+                <button type="submit" class="btn-primary btn-block">上传</button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ==================== 提示消息 ==================== -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // 显示/隐藏上传弹窗
+        function showUploadModal() {
+            document.getElementById('uploadModal').style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+        function hideUploadModal() {
+            document.getElementById('uploadModal').style.display = 'none';
+            document.body.style.overflow = '';
+        }
+        
+        // 图片预览
+        function previewImage(input) {
+            const preview = document.getElementById('previewImg');
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+        
+        // 上传照片
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const btn = this.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.textContent = '上传中...';
+            
+            try {
+                const res = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    showToast('✅ 上传成功，等待审核');
+                    hideUploadModal();
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showToast('❌ ' + data.message);
+                }
+            } catch (err) {
+                showToast('❌ 上传失败');
+            }
+            
+            btn.disabled = false;
+            btn.textContent = '上传';
+        });
+        
+        // 提示消息
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+        
+        // 点击遮罩关闭弹窗
+        document.getElementById('uploadModal').addEventListener('click', function(e) {
+            if (e.target === this) hideUploadModal();
+        });
+    </script>
+</body>
+</html>
