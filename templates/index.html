@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>照片社区 / Photo Community</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- ==================== 顶部导航 ==================== -->
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <a href="/" class="logo">
+                    <span class="logo-icon">📸</span>
+                    <span>照片社区</span>
+                </a>
+                <div class="nav-actions">
+                    {% if user %}
+                        <a href="/profile/{{ user.id }}" class="btn-nav btn-outline">我的主页 / Profile</a>
+                        {% if user.role == 'admin' %}
+                        <a href="/admin" class="btn-nav btn-outline">管理后台 / Admin</a>
+                        {% endif %}
+                        <a href="/logout" class="btn-nav btn-outline">退出 / Logout</a>
+                    {% else %}
+                        <a href="/login" class="btn-nav btn-primary">登录 / Login</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- ==================== 瀑布流图片墙 ==================== -->
+    <div class="container">
+        {% if images %}
+        <div class="masonry-grid" id="masonryGrid">
+            {% for img in images %}
+            <a href="/detail/{{ img.id }}" class="image-card">
+                <img src="{{ img.image_url }}" alt="{{ img.title }}" loading="lazy"
+                     onerror="this.src='https://via.placeholder.com/400x300/e0e0e0/999?text=图片加载失败'">
+                <div class="image-card-info">
+                    <div class="image-card-title">{{ img.title }}</div>
+                    <div class="image-card-meta">
+                        <div class="image-card-user">
+                            <div class="user-avatar-small">{{ img.user.username[0] if img.user else '?' }}</div>
+                            <span>{{ img.user.username if img.user else '未知' }}</span>
+                        </div>
+                        <div class="image-card-stats">
+                            <span class="stat-icon">❤️ {{ img.like_count }}</span>
+                            <span class="stat-icon">💬 {{ img.comment_count }}</span>
+                        </div>
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <!-- 没有图片时的提示 -->
+        <div style="text-align:center; padding:80px 20px;">
+            <div style="font-size:60px;">📷</div>
+            <h3>还没有公开照片 / No public photos yet</h3>
+            <p style="color:#999;">登录后上传你的第一张照片吧！/ Login to upload your first photo!</p>
+            <a href="/login" class="btn-primary" style="display:inline-block; margin-top:16px; text-decoration:none;">
+                去登录 / Go to Login
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ==================== 无限滚动加载 ==================== -->
+    <script>
+        // 瀑布流无限滚动 / Infinite scroll
+        let page = 1;
+        let loading = false;
+        
+        window.addEventListener('scroll', function() {
+            if (loading) return;
+            
+            // 滚动到底部时加载更多 / Load more when scrolled to bottom
+            if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
+                loading = true;
+                // 这里可以添加加载更多逻辑 / Add load more logic here
+                // 目前所有图片一次性加载，预留扩展 / Currently load all at once
+                loading = false;
+            }
+        });
+    </script>
+</body>
+</html>
